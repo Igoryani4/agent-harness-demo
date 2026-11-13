@@ -1,0 +1,68 @@
+services:
+  mcp-server:
+    build: .
+    command: python -m server.mcp_server
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./workspace:/app/workspace:ro
+      - ./traces:/app/traces
+    environment:
+      - TRACE_FILE=/app/traces/tool_calls.jsonl
+    networks:
+      - harness
+
+  orchestrator:
+    build: .
+    command: python -m orchestrator.graph "fix failing test in workspace" --yes
+    depends_on:
+      mcp-server:
+        condition: service_started
+      ollama:
+        condition: service_healthy
+    volumes:
+      - ./workspace:/app/workspace
+      - ./state:/app/state
+      - ./traces:/app/traces
+    environment:
+      - MCP_URL=http://mcp-server:8000/sse
+      - SQLITE_PATH=/app/state/harness.db
+      - LLM_PROVIDER=ollama
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=qwen2.5-coder:1.5b
+    networks:
+      - harness
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: harness-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    networks:
+      - harness
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  sandbox:
+    build:
+      context: ./sandbox
+    profiles: ["test"]
+    network_mode: "none"
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - ./workspace:/workspace:ro
+    mem_limit: 512m
+    pids_limit: 128
+
+volumes:
+  ollama_models:
+
+networks:
+  harness:
