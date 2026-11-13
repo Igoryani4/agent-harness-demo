@@ -1,4 +1,4 @@
-# Agent Harness Demo (BSS AI Developer)
+# Agent Harness Demo (S2I AI Developer)
 
 Минимальный, но рабочий harness для coding-агентов: MCP-инструменты +
 LangGraph-оркестратор с human-approval gate, Docker-sandbox для тестов
